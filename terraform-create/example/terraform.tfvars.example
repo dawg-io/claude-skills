@@ -1,0 +1,130 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored — it holds
+# your API token, so it must never be committed.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+
+# ---------------------------------------------------------------------------
+# Proxmox connection
+# ---------------------------------------------------------------------------
+
+pm_endpoint = "https://pve01.example.lan:8006/"
+
+# Create with, on the Proxmox node:
+#   pveum user token add terraform@pve provisioner --privsep 0
+# Then grant it a role with VM.Allocate, VM.Config.*, Datastore.AllocateSpace,
+# Datastore.Audit and Sys.Audit.
+pm_api_token = "terraform@pve!provisioner=00000000-0000-0000-0000-000000000000"
+
+# Only for a self-signed lab certificate.
+pm_insecure = true
+
+pm_ssh_username         = "root"
+pm_ssh_private_key_path = "~/.ssh/id_ed25519"
+
+# ---------------------------------------------------------------------------
+# Cloud image and datastores
+# ---------------------------------------------------------------------------
+
+image_node_name    = "pve01"
+image_datastore_id = "local"
+
+# Needs the Snippets content type enabled: Datacenter > Storage > (this store) > Content.
+snippets_datastore_id = "local"
+
+# ---------------------------------------------------------------------------
+# Guest access
+#
+# The guests are key-only. If ssh_public_keys is wrong you will build an
+# unreachable VM, and cloud-init cannot be re-run to fix it.
+# ---------------------------------------------------------------------------
+
+username = "ansible"
+
+ssh_public_keys = [
+  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAExampleKeyReplaceMe you@example.com",
+]
+
+packages = ["qemu-guest-agent"]
+
+# ---------------------------------------------------------------------------
+# Network and sizing defaults
+#
+# Every server entry below inherits these unless it overrides them.
+# ---------------------------------------------------------------------------
+
+net_bridge      = "vmbr0"
+net_vlan        = 100
+network_cidr    = 24
+network_gateway = "192.168.100.1"
+dns_servers     = ["192.168.100.1"]
+search_domain   = "example.lan"
+
+default_cores        = 2
+default_sockets      = 1
+default_memory_mb    = 2048
+default_disk_size_gb = 20
+default_tags         = ["terraform", "ubuntu"]
+on_boot              = true
+
+# ---------------------------------------------------------------------------
+# Generated Ansible inventory
+# ---------------------------------------------------------------------------
+
+ansible_group          = "ubuntu_servers"
+ansible_inventory_path = "inventory.yml"
+
+# ---------------------------------------------------------------------------
+# Servers
+#
+# This is the list `/terraform-create` emits entries for. Paste each new block
+# inside these brackets; the skill checks it for duplicate name, ip, MAC and
+# VMID before handing it over.
+#
+# Only name, node_name and disk_datastore_id are required.
+# ---------------------------------------------------------------------------
+
+servers = [
+  # Minimal: everything falls back to the defaults above, address via DHCP.
+  {
+    name              = "web01"
+    node_name         = "pve01"
+    disk_datastore_id = "local-lvm"
+  },
+
+  # Static address, bigger, and in an extra inventory group.
+  {
+    name              = "db01"
+    node_name         = "pve01"
+    disk_datastore_id = "local-lvm"
+
+    ip = "192.168.100.11"
+
+    cores        = 4
+    memory_mb    = 8192
+    disk_size_gb = 100
+
+    tags     = ["postgres"]
+    groups   = ["databases"]
+    packages = ["postgresql-client"]
+  },
+
+  # Pinned MAC and VMID, on a second node. Pinning net_mac means a DHCP
+  # reservation survives a rebuild; pinning vm_id keeps the VMID stable.
+  #
+  # A host outside 192.168.100.0/24 would also need its own `gateway`, since
+  # network_gateway above only serves this subnet. Everything here is in one
+  # subnet, so it inherits.
+  {
+    name              = "edge01"
+    node_name         = "pve02"
+    disk_datastore_id = "local-lvm"
+
+    ip = "192.168.100.5"
+
+    net_mac = "BC:24:11:00:00:05"
+    vm_id   = 3005
+
+    description = "Edge proxy"
+    groups      = ["edge"]
+  },
+]

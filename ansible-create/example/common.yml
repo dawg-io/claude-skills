@@ -1,0 +1,17 @@
+---
+# The fleet-wide entry point — what a nightly cron or scheduled job runs.
+#
+# Anything imported here runs against every host it targets, every night.
+# That makes adding to this file a change to fleet-wide behaviour, not a local
+# one, so it is deliberately a separate decision from writing the playbook
+# itself: build and prove a playbook standalone first, then wire it in here.
+#
+# Usage:
+#   ansible-playbook common.yml
+#   ansible-playbook common.yml --limit web01
+#   ansible-playbook common.yml --check --diff
+
+- import_playbook: chrony.yml
+
+# Add further fleet-wide playbooks below, one import_playbook each, e.g.:
+# - import_playbook: unattended-upgrades.yml

@@ -1,0 +1,25 @@
+---
+# Keep every host's clock in sync via chrony.
+#
+# This is the shape /ansible-create produces by default: one root-level
+# playbook, one job, targeting a group. The play is unnamed — that is the house
+# style here, and ansible-lint's name[play] rule fires on it deliberately.
+#
+# Usage:
+#   ansible-playbook chrony.yml
+#   ansible-playbook chrony.yml --limit web01
+#   ansible-playbook chrony.yml --check --diff --limit web01
+#
+#   # Converged only when a SECOND run reports zero changed:
+#   ansible-playbook chrony.yml --limit web01
+
+- hosts: timeservers
+  become: true
+
+  # No fact is used by this play or the chrony role, and gathering facts costs
+  # a round trip per host. Flip to true — with a comment saying which fact — the
+  # moment something actually needs one.
+  gather_facts: false
+
+  roles:
+    - role: chrony

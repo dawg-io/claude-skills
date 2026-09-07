@@ -1,0 +1,17 @@
+# Holds pm_api_token and your SSH key paths. Never commit it.
+terraform.tfvars
+*.auto.tfvars
+
+# State can contain the token and guest details in plaintext.
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+# Written on every apply from the servers list.
+inventory.yml
+
+# Saved plans
+tfplan
+*.tfplan

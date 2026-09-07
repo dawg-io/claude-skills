@@ -1,0 +1,31 @@
+---
+# Install with:
+#   ansible-galaxy install -r requirements.yml
+#
+# This is how content actually gets consumed — not `ansible-galaxy role import`,
+# which is a PUBLISHER command that pushes a role you own into your own Galaxy
+# namespace and needs an API token. Nothing here requires a Galaxy account.
+#
+# Everything is pinned. An unpinned dependency means a play that worked
+# yesterday can behave differently today for reasons nothing in this repo
+# records.
+
+collections:
+  # Pinned from Galaxy. `>=` would let a major version land unannounced.
+  - name: community.general
+    version: "10.1.0"
+
+  - name: ansible.posix
+    version: "2.0.0"
+
+roles:
+  # A public, validated role from Galaxy. Prefer one of these over writing your
+  # own — see roles/README.md.
+  - name: geerlingguy.docker
+    version: "7.4.1"
+
+  # Straight from git, no Galaxy involved. `version` takes a tag, branch or
+  # commit; use a tag. Replace with a real repository before running this.
+  # - name: example_internal_role
+  #   src: git+https://github.com/example-org/ansible-role-example.git
+  #   version: "v1.2.0"

@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: chrony
+  author: your-name
+  description: Install and configure chrony for NTP time synchronisation.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+  galaxy_tags:
+    - ntp
+    - time
+    - chrony
+
+# Roles this one needs applied first. Keep it empty unless there is a real
+# ordering requirement — a dependency here runs on every play that includes
+# this role, which is easy to forget.
+dependencies: []

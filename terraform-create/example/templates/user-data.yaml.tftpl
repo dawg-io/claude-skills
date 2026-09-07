@@ -1,0 +1,52 @@
+#cloud-config
+# Rendered by Terraform for ${hostname}. Do not edit on the node — it is
+# regenerated from templates/user-data.yaml.tftpl on every apply.
+#
+# This runs ONCE, on first boot. Changing it later has no effect on a guest
+# that already exists; recreate the VM to apply a change.
+#
+# The loops below strip trailing whitespace only, never leading. Stripping on
+# the left as well also eats the preceding newline, which silently joins every
+# list item onto a single line and produces YAML cloud-init rejects — leaving a
+# guest with no authorized keys and no way in. Re-render after editing.
+
+hostname: ${hostname}
+fqdn: ${hostname}
+prefer_fqdn_over_hostname: false
+manage_etc_hosts: true
+
+users:
+  - name: ${username}
+    groups: [adm, sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys:
+%{ for key in ssh_public_keys ~}
+      - ${key}
+%{ endfor ~}
+
+# Key-only access. Nothing below leaves a password path open.
+disable_root: true
+ssh_pwauth: false
+
+package_update: true
+package_upgrade: false
+%{ if length(packages) > 0 ~}
+packages:
+%{ for pkg in packages ~}
+  - ${pkg}
+%{ endfor ~}
+%{ endif ~}
+
+growpart:
+  mode: auto
+  devices: ["/"]
+  ignore_growroot_disabled: false
+
+runcmd:
+  # The guest agent is what lets Proxmox and Terraform report this guest's
+  # address. Without it, ipv4_addresses stays empty.
+  - systemctl enable --now qemu-guest-agent
+
+final_message: "cloud-init finished for ${hostname} after $UPTIME seconds"

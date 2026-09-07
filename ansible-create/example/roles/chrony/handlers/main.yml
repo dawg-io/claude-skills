@@ -1,0 +1,8 @@
+---
+# Handler names are the notify: string, verbatim. Ansible matches on the exact
+# name — a typo here means the handler never fires and the config change never
+# takes effect, with no error to notice it by.
+- name: Restart chrony
+  ansible.builtin.service:
+    name: "{{ chrony_service }}"
+    state: restarted

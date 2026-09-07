@@ -1,0 +1,21 @@
+# ansible-lint leaves this behind in the repo root. It is not ignored upstream,
+# which is exactly how it ends up in a commit. No trailing slash, so it matches
+# whether it lands as a directory or a file.
+.ansible
+
+# log_path in ansible.cfg. The directory has to exist or ansible warns on every
+# single run that it cannot write the log — so keep the directory, ignore the logs.
+logs/*
+!logs/.gitkeep
+
+# Never commit a become password, vault password, or anything like them.
+sudo_pass.txt
+.vault_pass
+*.retry
+
+# Roles and collections installed from requirements.yml. Pin them there and
+# install on demand; do not vendor them into the repo.
+collections/
+roles/*/
+!roles/chrony/
+!roles/README.md

@@ -1,0 +1,49 @@
+---
+# Fully qualified module names throughout. Bare names (`apt:`, `service:`) still
+# work but resolve through a lookup path that can change; FQCN is unambiguous
+# and is what ansible-lint expects.
+
+# Fail loudly on a placeholder rather than templating something useless into
+# /etc. Cheap, and it turns a silent misconfiguration into an obvious error.
+- name: Assert that at least one NTP server is configured
+  ansible.builtin.assert:
+    that:
+      - chrony_ntp_servers | length > 0
+    fail_msg: >-
+      chrony_ntp_servers is empty. Set it in the role's defaults, in group_vars,
+      or on the play — a chrony.conf with no sources will never sync.
+    quiet: true
+
+- name: Install chrony
+  ansible.builtin.apt:
+    name: "{{ chrony_package }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# Templating the config and notifying a handler is the whole pattern: the file
+# is only written when its content actually changes, and the service is only
+# restarted when the file changed. Both are idempotent — a second run reports
+# zero changed.
+- name: Deploy chrony configuration
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "{{ chrony_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    # Keep a copy of whatever the package shipped, once.
+    backup: true
+  notify: Restart chrony
+
+- name: Ensure chrony is enabled and running
+  ansible.builtin.service:
+    name: "{{ chrony_service }}"
+    state: started
+    enabled: true
+
+# Note what is NOT here: no `command: chronyc makestep`, no `shell:` pipeline.
+# An unqualified command reports "changed" on every single run, which makes the
+# whole play useless for spotting real drift. Where a command is genuinely
+# unavoidable, give it creates:, removes: or changed_when: so it can report
+# honestly.

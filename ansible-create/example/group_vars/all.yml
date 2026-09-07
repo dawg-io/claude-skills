@@ -1,0 +1,15 @@
+---
+# Fleet-wide, non-secret defaults. Keep this file small.
+#
+# Role tunables do NOT belong here — they belong in the role's own
+# defaults/main.yml, prefixed with the role's name. Putting them here makes a
+# role that cannot be reused without dragging this file along.
+#
+# Secrets do not belong here either, even vaulted. A vaulted group_vars file is
+# decrypted whenever any member of that group appears in ANY play — including
+# the nightly common.yml — so it is far broader exposure than it looks. Scope a
+# secret with vars_files in the single playbook that needs it, or reference the
+# vault from the role that uses it.
+
+example_timezone: "Etc/UTC"
+example_admin_email: "ops@example.lan"

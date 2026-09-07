@@ -1,0 +1,37 @@
+# Static INI inventory. Not YAML, and separate from any inventory.yml your
+# Terraform generates — a host can appear in both, and they can drift apart.
+#
+# Line format is `<hostname> ipv4=<address>`. Note that `ipv4` is an ordinary
+# host variable, NOT a connection setting: Ansible still connects to the name,
+# so the name has to resolve in DNS. If yours don't, add ansible_host too —
+# there is a commented example under [edge] below.
+#
+# Groups are snake_case. A [group:vars] block for a group with NO members
+# breaks the whole inventory: every play then silently matches zero hosts.
+# Never add one speculatively.
+
+[ubuntu_servers]
+web01 ipv4=192.168.100.10
+db01 ipv4=192.168.100.11
+
+[ubuntu_servers:vars]
+# Must match the account your image actually has. A VM built by the Terraform
+# example in ../../terraform-create/example gets a key-only `ansible` user with
+# root and password login both disabled — so pointing this at `root` or a
+# personal login fails at connection, before a single task runs. That is the
+# single most common way a brand-new host refuses to work.
+ansible_ssh_user=ansible
+
+[edge]
+edge01 ipv4=192.168.100.5
+# If edge01 does not resolve in DNS, connect by address instead:
+# edge01 ipv4=192.168.100.5 ansible_host=192.168.100.5
+
+[edge:vars]
+ansible_ssh_user=ansible
+
+# A host may belong to more than one group.
+[timeservers]
+web01
+db01
+edge01

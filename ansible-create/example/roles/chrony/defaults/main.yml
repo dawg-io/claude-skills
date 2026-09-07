@@ -1,0 +1,38 @@
+---
+# Every tunable lives here, prefixed with the role subject, and commented.
+#
+# An undefined variable is a hard failure at run time. That is ansible's own
+# default and needs no ansible.cfg setting to hold — see the note there on
+# error_on_undefined_vars, which is deprecated. So a variable referenced in a
+# task or a template and NOT given a default here fails loudly, instead of
+# templating an empty string into a config file.
+
+# Upstream time sources. Replace with your own NTP servers or a local appliance.
+chrony_ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"
+  - "2.pool.ntp.org"
+  - "3.pool.ntp.org"
+
+# `iburst` speeds up the initial sync. Leave it on unless you have a reason.
+chrony_use_iburst: true
+
+# Distro package and unit names. Debian/Ubuntu use "chrony" for both; RHEL
+# calls the service "chronyd".
+chrony_package: chrony
+chrony_service: chrony
+
+chrony_config_path: /etc/chrony/chrony.conf
+chrony_driftfile: /var/lib/chrony/chrony.drift
+
+# Step the clock instead of slewing it if the offset exceeds this many seconds,
+# for the first N updates after start. Large corrections otherwise take hours.
+chrony_makestep_threshold: 1.0
+chrony_makestep_limit: 3
+
+# Allow NTP client access from these networks. Empty means serve nobody, which
+# is the right default for a plain client.
+chrony_allow_networks: []
+
+# Set true only on a host that should serve time to others.
+chrony_is_server: false
