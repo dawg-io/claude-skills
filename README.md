@@ -12,8 +12,9 @@ refuse to do.
 | Skill | What it does | Scope |
 |---|---|---|
 | [`code-development`](code-development/) | Takes a feature, bugfix, or patch from "I want X" to an open PR — scope, implement, document, in that strict order. `/code-development init` records your real test and lint commands after running them | **General-purpose** |
-| [`ci-pipeline`](ci-pipeline/) | Watches CI after a push or PR, reads the real failing logs, root-causes it, and fixes it or escalates with options. `/ci-pipeline init` records which checks gate a merge and how to reproduce each locally | **General-purpose** |
-| [`release`](release/) | Drives a repo's release end to end — PR audit, blocking docs gate, approval issue, workflow dispatch, outcome announcement, HTML record — from a `.claude/release.yml` that `/release init` writes for you. `/release dry-run` rehearses it read-only | **General-purpose** |
+| [`pipeline-create`](pipeline-create/) | Gives a repo with **no** CI one — scans every language, interviews you through artifacts, branching, gates and deploys, then writes split-by-concern GitHub Actions workflows on a branch. Build once, promote by retag, never guess. Ships a [practice repo](pipeline-create/example/) with no CI and the [pipeline it produces](pipeline-create/example/expected-pipeline/) | **General-purpose** |
+| [`pipeline-monitor`](pipeline-monitor/) | Watches CI after a push or PR, reads the real failing logs, root-causes it, and fixes it or escalates with options. `/pipeline-monitor init` records which checks gate a merge and how to reproduce each locally | **General-purpose** |
+| [`code-release`](code-release/) | Drives a repo's release end to end — PR audit, blocking docs gate, approval issue, workflow dispatch, outcome announcement, HTML record — from a `.claude/code-release.yml` that `/code-release init` writes for you. `/code-release dry-run` rehearses it read-only | **General-purpose** |
 | [`ansible-create`](ansible-create/) | Turns a host into a minimal playbook, an inventory line, and a draft PR. `/ansible-create init` checks your repo has the shape it needs and records the real paths. Ships a working [example repo](ansible-create/example/) to use it against | **General-purpose** |
 | [`terraform-create`](terraform-create/) | Interviews you for a new Proxmox VM and emits a ready-to-paste tfvars entry plus the matching Ansible inventory line. `/terraform-create init` records *your* VLAN, sizing, addressing and node names in place of the example ones. Ships a working [example module](terraform-create/example/) to use it against | Environment-specific |
 
@@ -23,6 +24,10 @@ run: each has an `init` that writes a small `.claude/<skill>.yml` in the repo it
 recording what it found so the next run reads instead of re-deriving. `ansible-create`
 additionally expects a particular repo *shape*, and ships a working `example/` that
 implements it — its `init` checks for that shape rather than assuming it.
+
+`pipeline-create` is the one exception: it runs essentially once per repo, so there is
+nothing worth caching for a next run. Its record is the `.github/pipeline-plan.md` it commits
+alongside the workflows, and it has no `init`.
 
 **Environment-specific** means the skill targets a particular platform — `terraform-create`
 assumes Proxmox. Its two `references/` files carry concrete VLANs, addressing and node names
@@ -37,7 +42,7 @@ Skills are just folders. Copy the ones you want to either location:
 ```bash
 # personal — available in every project
 mkdir -p ~/.claude/skills
-cp -r code-development ci-pipeline ~/.claude/skills/
+cp -r code-development pipeline-monitor ~/.claude/skills/
 
 # project-scoped — checked in alongside the code it serves
 mkdir -p /path/to/repo/.claude/skills
@@ -59,11 +64,11 @@ Per-skill requirements are documented in each folder.
 
 ### Then run `init`
 
-**Every skill needs a second step after copying.** Each is driven by a small config that
+**Five of the six need a second step after copying.** Each is driven by a small config that
 lives in *your* repo, not in the skill, and each writes that config for you:
 
 ```
-/code-development init     /ci-pipeline init     /release init
+/code-development init     /pipeline-monitor init     /code-release init
 /ansible-create init       /terraform-create init
 ```
 
@@ -73,12 +78,14 @@ commands, resolving the paths, checking the names against a live run — then co
 file on a branch and open a PR. Nothing is merged without an explicit yes, and none of them
 commits anything else.
 
-Two are worth calling out:
+Three are worth calling out:
 
-- **`release`** also has `/release dry-run`, which rehearses an entire release read-only.
-  Run it before the real thing. Full walkthrough in [`release/README.md`](release/README.md).
+- **`code-release`** also has `/code-release dry-run`, which rehearses an entire release read-only.
+  Run it before the real thing. Full walkthrough in [`code-release/README.md`](code-release/README.md).
 - **`terraform-create`** ships illustrative fallback values. Its `init` replaces them with
   yours, read from your existing tfvars where it can.
+- **`pipeline-create`** has no `init` at all. It runs once per repo, so there is nothing to
+  cache — copy it and run `/pipeline-create` in a repo that needs a pipeline.
 
 Skipping `init` isn't fatal — the skills still discover what they need each run and say
 they're doing so. You just pay for it every time, and anything they had to guess stays a
@@ -94,13 +101,13 @@ They're written to the same shape, which is most of why they behave predictably:
   `.github/workflows/`, `ansible.cfg`, `terraform.tfvars`, the nearest existing role. Where
   a skill documents a repo fact, it's marked as a snapshot, and **the repo wins on any
   disagreement**.
-- **An `init` that records what it discovered.** Each skill writes one `.claude/<skill>.yml`
-  in the repo it serves, so discovery happens once instead of every run — and so
-  environment-specific values are recorded rather than baked in. That file is the only thing
-  **`init` itself** commits, always on a branch, always after you've seen it. What a skill
-  commits during its actual work is its own business — `code-development` commits your
-  implementation, `ansible-create` a playbook and an inventory line, `ci-pipeline` a fix and
-  its regression test.
+- **An `init` that records what it discovered.** Each skill except `pipeline-create` writes
+  one `.claude/<skill>.yml` in the repo it serves, so discovery happens once instead of every
+  run — and so environment-specific values are recorded rather than baked in. That file is
+  the only thing **`init` itself** commits, always on a branch, always after you've seen it.
+  What a skill commits during its actual work is its own business — `code-development`
+  commits your implementation, `ansible-create` a playbook and an inventory line,
+  `pipeline-monitor` a fix and its regression test, `pipeline-create` a set of workflow files.
 - **Validated, not assumed.** Every `init` proves what it wrote before committing it: the
   test command is run, the inventory is parsed, the check names are matched against a real
   run. A config that names something that doesn't exist is worse than no config, because it
@@ -114,7 +121,7 @@ They're written to the same shape, which is most of why they behave predictably:
 - **Explicit out-of-bounds lists.** "Never in bounds, even when it would be faster" — no
   `git add -A`, no pushing to the default branch, no weakening a check to get it green, no
   scope creep past what was approved.
-- **No fabricated command output.** All five carry the same rule, worded for what they
+- **No fabricated command output.** All six carry the same rule, worded for what they
   actually run — `"not run — <reason>"` for a command, `"Not reached — <reason>"` for a
   phase. Either is a correct answer, and a fabricated pass is the one failure mode that
   makes a skill worse than doing the work by hand.

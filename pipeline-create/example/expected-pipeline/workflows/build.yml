@@ -1,0 +1,59 @@
+# Concern: build. Called, never triggered directly.
+#
+# This is the only job in the whole pipeline that turns source into an artifact.
+# Everything downstream — tests against the image, scanners, deploys, promotion —
+# consumes what this publishes, by the immutable `sha-<short>` tag it returns.
+name: build
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: >-
+          Publish the image, or build it and throw it away. False on a fork PR, where
+          GITHUB_TOKEN is read-only and a push to GHCR would fail.
+        type: boolean
+        default: true
+    outputs:
+      image:
+        description: Fully-qualified immutable image reference, digest-stable.
+        value: ${{ jobs.image.outputs.image }}
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write     # pushing to ghcr.io
+    outputs:
+      image: ${{ steps.ref.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute the immutable tag
+        id: ref
+        run: |
+          set -euo pipefail
+          # Derived from the SHA, so any later workflow can reconstruct this reference
+          # without artifact plumbing. See references/patterns.md.
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        if: inputs.push
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ inputs.push }}
+          tags: ${{ steps.ref.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

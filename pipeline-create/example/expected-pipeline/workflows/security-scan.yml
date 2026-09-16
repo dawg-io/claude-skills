@@ -1,0 +1,66 @@
+# Concern: security scanning. Called, never triggered directly.
+#
+# Takes the image reference the build produced. It scans exactly what was built —
+# it never rebuilds, because a scan of a second build proves nothing about the first.
+name: security-scan
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Immutable image reference from the build workflow. Empty = skip the image scan.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write    # SARIF upload to the Security tab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v3
+
+  image-scan:
+    # Empty input means the caller had nothing published to scan — a fork PR, where the
+    # build could not push. Skipping is correct there; silently rebuilding would not be.
+    if: inputs.image != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read            # pulling the image back out of GHCR
+      security-events: write
+    steps:
+      # GHCR packages are private by default, including on a public repo, so the pull
+      # needs a credential. `packages: read` above grants the token the scope; nothing
+      # hands that token to the client without this step, and the failure surfaces as an
+      # opaque UNAUTHORIZED from trivy rather than as a missing login.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pinned to an exact version rather than a major tag: trivy-action publishes no
+      # moving major tag, so `@v0` would not resolve. Stricter than the repo default,
+      # which is why it is called out here instead of left to look like an oversight.
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ inputs.image }}
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"        # a CRITICAL or HIGH fails the gate; that is the point
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()            # upload findings even when the gate failed
+        with:
+          sarif_file: trivy.sarif
+          category: trivy

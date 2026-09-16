@@ -1,0 +1,82 @@
+# Orchestrator: a v* tag.
+#
+# Deliberately short, because a release must not rebuild anything. The image for this
+# commit already exists — main built it, main scanned it — so a release is a retag of
+# that digest plus the paperwork. If the tagged commit was never built on main, the
+# retag fails, and that failure is correct: there is nothing proven to release.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.retag.outputs.image }}
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retag the scanned image with the release version
+        id: retag
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+          version="${GITHUB_REF_NAME#v}"          # v1.4.0 -> 1.4.0
+          # Reconstructed from the SHA, not passed between runs — see references/patterns.md.
+          src="${repo}:sha-${GITHUB_SHA::7}"
+          # The exact version always. The moving tags only for a final release: the
+          # trigger is `v*`, and gitflow.md lists 1.4.0-rc.2 as a supported scheme, so
+          # without this guard pushing v1.4.0-rc1 moves `latest` onto a release candidate
+          # and every `docker pull` gets it. `${version%.*}` on 1.4.0-rc.1 is worse still
+          # — it yields the nonsense tag `1.4.0-rc`.
+          tags=(--tag "${repo}:${version}")
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            tags+=(--tag "${repo}:${version%.*}" --tag "${repo}:latest")
+          else
+            echo "::notice::$version is a prerelease — not moving :latest or the short tag"
+          fi
+
+          docker buildx imagetools create "${tags[@]}" "$src"
+          echo "image=${repo}:${version}" >> "$GITHUB_OUTPUT"
+
+  sbom:
+    needs: [promote]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write         # attaching the SBOM to the release
+      packages: read
+    steps:
+      # Same reason as the image scan in security-scan.yml: syft pulls the image, and an
+      # anonymous pull of a default-private GHCR package fails with UNAUTHORIZED.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: anchore/sbom-action@v0
+        with:
+          image: ${{ needs.promote.outputs.image }}
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: sbom.cyclonedx.json
+          generate_release_notes: true

@@ -1,4 +1,4 @@
-# ci-pipeline
+# pipeline-monitor
 
 Watches the CI pipeline for the repo and commit you're working on — after a push, an opened
 or merged PR, a tag, or any other gitops action that kicks off a run — figures out why a
@@ -11,8 +11,8 @@ This skill has real side effects: it re-runs jobs, cancels runs, commits, pushes
 comments on PRs.
 
 **General-purpose.** Repo-agnostic — it reads whatever CI the repo actually has. What it
-learns about your repo lives in a `.claude/ci-pipeline.yml` committed to that repo, written
-for you by `/ci-pipeline init`. The skill itself hardcodes no repo, workflow, or check name.
+learns about your repo lives in a `.claude/pipeline-monitor.yml` committed to that repo, written
+for you by `/pipeline-monitor init`. The skill itself hardcodes no repo, workflow, or check name.
 
 ---
 
@@ -22,7 +22,7 @@ This skill **watches** your CI. It does not write it. You need:
 
 | | Why |
 |---|---|
-| At least one CI check that runs on push or PR | It's the thing being watched. With no workflows and no external checks, `/ci-pipeline init` stops and tells you so |
+| At least one CI check that runs on push or PR | It's the thing being watched. With no workflows and no external checks, `/pipeline-monitor init` stops and tells you so |
 | `gh` CLI authenticated, or a connected GitHub MCP server | Runs, logs, checks, and PR comments all come from there. Read access is enough to diagnose; **write access** is needed to re-run a job, cancel a run, push a fix, comment on the PR, or run `init` |
 | `git` | Repo, branch, SHA, clean-tree check, and the fix commit are all local git |
 | Claude Code | Not a chat skill — repo and branch come from the actual working directory and checked-out branch |
@@ -51,11 +51,11 @@ skill:
 ```mermaid
 flowchart LR
     subgraph home["Your machine · install once"]
-        skill["~/.claude/skills/ci-pipeline/<br/><b>SKILL.md</b>"]
+        skill["~/.claude/skills/pipeline-monitor/<br/><b>SKILL.md</b>"]
     end
     subgraph repo["Your repo · one config per repo you watch"]
         direction TB
-        cfg[".claude/<b>ci-pipeline.yml</b><br/>written for you by /ci-pipeline init"]
+        cfg[".claude/<b>pipeline-monitor.yml</b><br/>written for you by /pipeline-monitor init"]
         wf[".github/workflows/*.yml<br/>your real CI — never written by this skill"]
     end
     runs["GitHub Actions runs,<br/>plus external checks like<br/>SonarQube and Codecov"]
@@ -86,22 +86,22 @@ cd claude-skills
 
 # personal — available in every project (recommended)
 mkdir -p ~/.claude/skills
-cp -r ci-pipeline ~/.claude/skills/
+cp -r pipeline-monitor ~/.claude/skills/
 
 # or project-scoped — checked in alongside the repo it watches
 mkdir -p /path/to/your-repo/.claude/skills
-cp -r ci-pipeline /path/to/your-repo/.claude/skills/
+cp -r pipeline-monitor /path/to/your-repo/.claude/skills/
 ```
 
 Start a new Claude Code session — skills are picked up at session start, not live. Confirm
-it loaded by typing `/` and looking for `ci-pipeline` in the list.
+it loaded by typing `/` and looking for `pipeline-monitor` in the list.
 
 ### Step 2 — set up the repo you want to watch
 
 From inside that repo:
 
 ```
-/ci-pipeline init
+/pipeline-monitor init
 ```
 
 It reads your repo rather than quizzing you: takes the check names from a real PR (not from
@@ -111,7 +111,7 @@ find out which checks actually block a merge, measures typical durations from yo
 successful runs, and derives a local reproduction command from each job's own `run:` steps.
 
 Then it asks the handful of things it genuinely can't read — which jobs are unsafe to
-re-run, whether you want findings on the PR or in chat — writes `.claude/ci-pipeline.yml`,
+re-run, whether you want findings on the PR or in chat — writes `.claude/pipeline-monitor.yml`,
 shows it to you in full, **validates it against reality**, commits that one path on a
 branch, and opens a PR. It merges that PR only if you say yes.
 
@@ -121,7 +121,7 @@ machine. A config that names a check which doesn't exist is worse than no config
 the skill wait forever for something that will never show up.
 
 That's the whole install. There is no step 3: the skill fires on its own at your next push.
-You can also ask it anything about CI, or type `/ci-pipeline`, and it picks up whatever is
+You can also ask it anything about CI, or type `/pipeline-monitor`, and it picks up whatever is
 happening on the current commit.
 
 ---
@@ -182,8 +182,8 @@ or re-running until it goes green. None of those are paths this skill has.
 
 | You type | It does | It writes |
 |---|---|---|
-| `/ci-pipeline init` | Inventories the repo's real CI, writes `.claude/ci-pipeline.yml`, opens a PR for it | One file, on a branch, after you've seen it |
-| `/ci-pipeline`, or nothing at all | The full run, Phases 0–9 | One job re-run, run cancellations, a fix commit on the topic branch, PR comments |
+| `/pipeline-monitor init` | Inventories the repo's real CI, writes `.claude/pipeline-monitor.yml`, opens a PR for it | One file, on a branch, after you've seen it |
+| `/pipeline-monitor`, or nothing at all | The full run, Phases 0–9 | One job re-run, run cancellations, a fix commit on the topic branch, PR comments |
 
 **Setup never diagnoses or fixes. A run never writes the config.**
 
@@ -199,11 +199,11 @@ running does it route into setup.
 
 - Automatically, the moment a push, PR, or merge happens in the session — **including a push
   it just made itself**
-- `/ci-pipeline`, `/devops`, `/pr-pipeline-watch`
-- `/ci-pipeline init`, "set up ci-pipeline", "configure CI watching" → setup
+- `/pipeline-monitor`, `/devops`, `/pr-pipeline-watch`
+- `/pipeline-monitor init`, "set up pipeline-monitor", "configure CI watching" → setup
 - Any question about CI, a build, or a red check — down to a bare "did that pass?"
 
-Not for feature work (`code-development`) or releases (`release`).
+Not for feature work (`code-development`) or releases (`code-release`).
 
 ---
 
@@ -272,7 +272,7 @@ Flipping a check to `advisory` to get green is the same cheap fix as flipping it
 The unit of work is the **commit**, not "the latest run" — a single push commonly triggers
 several workflows plus external checks that aren't GitHub Actions at all.
 
-### Setup mode — `/ci-pipeline init`
+### Setup mode — `/pipeline-monitor init`
 
 Confirms write access, discovers the repo, refuses to start on a dirty tree, and refuses to
 overwrite a config you haven't seen. Then the check that actually saves people: it looks for
@@ -411,8 +411,8 @@ working from a loaded config or deriving from the repo.
 5. **Never claim a command ran that didn't**
 6. **Never guess** — not at a root cause, a job id, what a log said, or what a check
    enforces
-7. **Setup commits exactly one file; a run commits only the fix.** `.claude/ci-pipeline.yml`
-   is written by `/ci-pipeline init` alone, on a branch, after you've seen it — and never
+7. **Setup commits exactly one file; a run commits only the fix.** `.claude/pipeline-monitor.yml`
+   is written by `/pipeline-monitor init` alone, on a branch, after you've seen it — and never
    edited during a run to change how that run ends. `git add -A` is never correct in either
    mode
 
@@ -431,14 +431,14 @@ quietly redacted.
 - Write, generate, or repair CI workflows — a repo with no CI is handed to
   `/code-development`
 - Dispatch, enable, or disable workflows; create releases or tags; edit branch protection
-- Merge or close any PR except the `.claude/ci-pipeline.yml` config PR that `init` opened,
+- Merge or close any PR except the `.claude/pipeline-monitor.yml` config PR that `init` opened,
   and that one only on an explicit yes. It never merges the PR under review
 - Commit anything but the fix and its regression test in a run, or anything but the config
   in setup — and never `git add -A`
 - Change a repository or environment secret
 - Skip, disable, or loosen a failing test, assertion, lint rule, or quality gate
 - Lower a coverage threshold, add a scanner exclusion, or mark a finding won't-fix
-- Edit `.claude/ci-pipeline.yml` mid-run to change how the run ends — downgrading a check in
+- Edit `.claude/pipeline-monitor.yml` mid-run to change how the run ends — downgrading a check in
   the config is the same cheap fix as downgrading it in CI
 - Pad timeouts, add blanket retries, or add `continue-on-error` to hide a real failure
 - Hardcode an expected value, mock around the bug, or swallow an exception
@@ -466,6 +466,6 @@ future edit to it must remove at least as much as it adds.
 
 `init` is named in it, and has to be. The description is the only text a skill loader
 matches, so a trigger documented here but missing there simply never fires — and this README
-advertises `"set up ci-pipeline"` as a natural-language trigger. Room was made by tightening
+advertises `"set up pipeline-monitor"` as a natural-language trigger. Room was made by tightening
 the prose, not by dropping any trigger: the automatic post-push firing, the slash commands
 and the bare `"did that pass?"` are all still in there.

@@ -1,0 +1,90 @@
+# Orchestrator: pull requests into main.
+#
+# The only file in the PR path that carries a trigger. It builds once, then hands the
+# resulting image reference to the scanner. Nothing here deploys and nothing here
+# promotes — a PR proves the change is shippable, the merge ships it.
+name: PR validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true    # superseded PR runs are noise — see main-pipeline.yml for why it differs there
+
+jobs:
+  # A fork PR gets a read-only GITHUB_TOKEN and cannot push to GHCR, so on a fork the
+  # image is built and thrown away and there is nothing for the scanner to pull. That
+  # breaks the reuse chain by necessity; it is not something to paper over.
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      push: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+
+  test:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  lint:
+    uses: ./.github/workflows/lint.yml
+    permissions:
+      contents: read
+
+  security_scan:
+    needs: [build]
+    uses: ./.github/workflows/security-scan.yml
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    with:
+      image: >-
+        ${{ github.event.pull_request.head.repo.full_name == github.repository
+            && needs.build.outputs.image || '' }}
+
+  # The required status check. It exists because a *skipped* job reports success to
+  # branch protection — without this, a whole validation stage could stop running and
+  # the PR would still go green.
+  summary:
+    needs: [build, test, lint, security_scan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce pipeline result
+        env:
+          R_BUILD: ${{ needs.build.result }}
+          R_TEST: ${{ needs.test.result }}
+          R_LINT: ${{ needs.lint.result }}
+          R_SCAN: ${{ needs.security_scan.result }}
+        run: |
+          set -euo pipefail
+          results="build:$R_BUILD test:$R_TEST lint:$R_LINT security-scan:$R_SCAN"
+          failed=0 skipped=0
+          {
+            echo "| job | result |"
+            echo "|---|---|"
+            for pair in $results; do
+              echo "| ${pair%%:*} | ${pair#*:} |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          for pair in $results; do
+            case "${pair#*:}" in
+              success) ;;
+              skipped|cancelled) skipped=1 ;;
+              *) echo "::error::${pair%%:*} reported ${pair#*:}"; failed=1 ;;
+            esac
+          done
+          # A skip with no failure to explain it means a stage silently stopped running.
+          if [ "$failed" -eq 0 ] && [ "$skipped" -eq 1 ]; then
+            echo "::error::a job was skipped and no failure explains it"
+            exit 1
+          fi
+          exit "$failed"

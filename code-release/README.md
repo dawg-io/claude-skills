@@ -1,16 +1,16 @@
-# release
+# code-release
 
 Runs a repository's release process end to end: audit what changed and whether docs and
 screenshots still match it, get human approval on a review issue, make sure the live docs
 site is current, dispatch the release workflow with that issue's number, track it, announce
 the outcome, and leave behind an HTML record of what shipped.
 
-**General-purpose.** Everything project-specific comes from a `.claude/release.yml`
+**General-purpose.** Everything project-specific comes from a `.claude/code-release.yml`
 committed to the repo being released — the skill itself hardcodes no repo, workflow, branch,
-or input name. `/release init` writes that file for you.
+or input name. `/code-release init` writes that file for you.
 
 This has real side effects: it opens and closes GitHub issues, dispatches a production CI
-workflow, and posts an announcement. `/release dry-run` rehearses the whole thing without
+workflow, and posts an announcement. `/code-release dry-run` rehearses the whole thing without
 touching anything.
 
 ---
@@ -21,7 +21,7 @@ This skill **dispatches** your release workflow. It does not write one. You need
 
 | | Why |
 |---|---|
-| A GitHub Actions workflow with a `workflow_dispatch:` trigger | It's the thing being triggered. Without it there is nothing to release with, and `/release init` stops and tells you so |
+| A GitHub Actions workflow with a `workflow_dispatch:` trigger | It's the thing being triggered. Without it there is nothing to release with, and `/code-release init` stops and tells you so |
 | `gh` CLI authenticated, or a connected GitHub MCP server — **with write access** | Issues get created and workflows get dispatched. Unauthenticated web fetches are not a fallback |
 | Claude Code | Not a chat skill |
 | Slack tooling | Only if you want the announcement step |
@@ -48,11 +48,11 @@ first time:
 ```mermaid
 flowchart LR
     subgraph home["Your machine · install once"]
-        skill["~/.claude/skills/release/<br/><b>SKILL.md</b> + references/"]
+        skill["~/.claude/skills/code-release/<br/><b>SKILL.md</b> + references/"]
     end
     subgraph repo["Your repo · one config per repo you release"]
         direction TB
-        cfg[".claude/<b>release.yml</b><br/>written for you by /release init"]
+        cfg[".claude/<b>code-release.yml</b><br/>written for you by /code-release init"]
         wf[".github/workflows/your-release.yml<br/>must have a workflow_dispatch trigger"]
     end
     skill -->|"1 · reads"| cfg
@@ -76,15 +76,15 @@ cd claude-skills
 
 # personal — available in every project (recommended)
 mkdir -p ~/.claude/skills
-cp -r release ~/.claude/skills/
+cp -r code-release ~/.claude/skills/
 
 # or project-scoped — checked in alongside the repo it releases
 mkdir -p /path/to/your-repo/.claude/skills
-cp -r release /path/to/your-repo/.claude/skills/
+cp -r code-release /path/to/your-repo/.claude/skills/
 ```
 
 Start a new Claude Code session — skills are picked up at session start, not live. Confirm
-it loaded by typing `/` and looking for `release` in the list, or run `/release dry-run`
+it loaded by typing `/` and looking for `code-release` in the list, or run `/code-release dry-run`
 and see whether it answers.
 
 ### Step 2 — set up the repo you want to release
@@ -92,12 +92,12 @@ and see whether it answers.
 From inside that repo:
 
 ```
-/release init
+/code-release init
 ```
 
 It reads your repo rather than quizzing you: lists your dispatchable workflows, asks which
 one releases, pulls the input names straight out of that workflow's YAML, and asks only the
-handful of things it genuinely can't read. Then it writes `.claude/release.yml`, shows it to
+handful of things it genuinely can't read. Then it writes `.claude/code-release.yml`, shows it to
 you in full, validates it against the live workflow, commits it on a branch, and opens a PR.
 It merges that PR only if you say yes.
 
@@ -108,7 +108,7 @@ wrong and expensive to get wrong.
 ### Step 3 — rehearse
 
 ```
-/release dry-run
+/code-release dry-run
 ```
 
 Reads everything, changes nothing. No issue, no dispatch, no announcement, no file. It prints
@@ -118,13 +118,13 @@ skipped and why, and **the exact dispatch payload a real run would send** — th
 With no config yet it says so and points at `init` rather than interviewing you — Setup
 writes files, and this mode writes nothing.
 
-Run this first. It costs nothing and it's the only way to see what `/release` would do
+Run this first. It costs nothing and it's the only way to see what `/code-release` would do
 without finding out by watching it happen.
 
 ### Step 4 — release
 
 ```
-/release
+/code-release
 ```
 
 ---
@@ -133,8 +133,8 @@ without finding out by watching it happen.
 
 ```mermaid
 flowchart TD
-    go(["/release"]) --> p0["Phase 0 · load config,<br/>validate against the live workflow"]
-    p0 -->|"no config found"| init["/release init<br/>interview, write it, PR it"]
+    go(["/code-release"]) --> p0["Phase 0 · load config,<br/>validate against the live workflow"]
+    p0 -->|"no config found"| init["/code-release init<br/>interview, write it, PR it"]
     init --> p0
     p0 --> p1["Phase 1 · baseline from the last<br/>successful release run"]
     p1 -->|"nothing new"| s1(["Stops — nothing to release"])
@@ -176,9 +176,9 @@ and prints the report.
 
 | It says | What happened | What you do |
 |---|---|---|
-| **ON HOLD issue opened** | Phase 3 found docs that no longer match what's shipping | Fix the docs — the skill never will. Then re-run `/release` from the top; it closes the hold itself |
+| **ON HOLD issue opened** | Phase 3 found docs that no longer match what's shipping | Fix the docs — the skill never will. Then re-run `/code-release` from the top; it closes the hold itself |
 | **Nothing new since the baseline** | No PRs merged since the last successful release | Nothing to do. It won't open an issue for an empty release |
-| **Hard stop on an input name** | Your config sends an input your workflow doesn't declare | Fix that line in `.claude/release.yml`. The error names the key and what the workflow actually declares |
+| **Hard stop on an input name** | Your config sends an input your workflow doesn't declare | Fix that line in `.claude/code-release.yml`. The error names the key and what the workflow actually declares |
 | **No successful run to baseline from** | The release workflow has never completed successfully | Tell it what range to review. It won't silently review your entire history |
 | **The run failed** | Your release workflow itself failed | Read the run. The skill reports and stops — it never retries a production release |
 
@@ -188,16 +188,16 @@ and prints the report.
 
 | You type | It does | It writes |
 |---|---|---|
-| `/release init` | Interviews you, writes `.claude/release.yml`, opens a PR for it | One file, on a branch, after you've seen it |
-| `/release dry-run` | Phases 0–2 plus the printed dispatch payload, then stops | **Nothing at all** |
-| `/release` | The full run, Phases 0–10 | Issues, a dispatch, an announcement, an HTML record |
+| `/code-release init` | Interviews you, writes `.claude/code-release.yml`, opens a PR for it | One file, on a branch, after you've seen it |
+| `/code-release dry-run` | Phases 0–2 plus the printed dispatch payload, then stops | **Nothing at all** |
+| `/code-release` | The full run, Phases 0–10 | Issues, a dispatch, an announcement, an HTML record |
 
-Plain `/release` in a repo with no config routes into `init` first and says so, then carries
+Plain `/code-release` in a repo with no config routes into `init` first and says so, then carries
 on into the release.
 
 ### When it triggers
 
-- `/release`, `/release init`, `/release dry-run`
+- `/code-release`, `/code-release init`, `/code-release dry-run`
 - "cut a release", "ship a release", "publish a release", "promote to public"
 - "set up release", "configure release" → init
 - "practice run", "what would a release do" → dry-run
@@ -205,7 +205,7 @@ on into the release.
 It's a multi-step side-effecting process, never a single-question status check — it always
 runs the full sequence.
 
-Not for feature work (`code-development`) or diagnosing a red pipeline (`ci-pipeline`).
+Not for feature work (`code-development`) or diagnosing a red pipeline (`pipeline-monitor`).
 
 ---
 
@@ -259,7 +259,7 @@ phase that uses it.
 
 ## How it works
 
-### Setup mode — `/release init`
+### Setup mode — `/code-release init`
 
 Confirms write access, discovers the repo, and refuses to overwrite a config you haven't
 seen. Then the check that actually saves people: it lists the repo's workflows and finds the
@@ -276,7 +276,7 @@ committing anything, commits that one path on a branch cut from the default bran
 an explicit yes. It stops rather than committing into a dirty tree, and puts you back on the
 branch you started on.
 
-### Rehearsal mode — `/release dry-run`
+### Rehearsal mode — `/code-release dry-run`
 
 Phases 0, 1 and 2 exactly as written, then it prints what the rest *would* do: the phases
 that would be skipped and which absent config block causes each, the exact dispatch payload,
@@ -421,7 +421,7 @@ configured"*, never a green check.
 4. **The config is the contract; the repo is the truth** — where they disagree, stop
 5. **Never fabricate an approval issue number**, or reuse a stale one
 6. **Never auto-merge the outcome, and never announce on the workflow merely succeeding**
-7. **The only file it *commits* is `.claude/release.yml`**, in setup mode, on a branch, after
+7. **The only file it *commits* is `.claude/code-release.yml`**, in setup mode, on a branch, after
    you've seen it — the release record is written untracked, and nothing else is written at all
 8. **A credential in a log is a finding, not an inconvenience** — redacted in the report, the
    review issue, the announcement and the HTML record, named, and flagged for rotation

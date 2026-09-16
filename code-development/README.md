@@ -146,7 +146,7 @@ flowchart TD
     t3 -->|"nothing will render a needed shot"| s3["Captures nothing, claims nothing —<br/>lists it as PR follow-up"]
     s3 --> fin
     t3 --> fin["Finish · push, open the PR<br/>with an explicit base"]
-    fin --> handoff(["Hands CI to ci-pipeline · done"])
+    fin --> handoff(["Hands CI to pipeline-monitor · done"])
 ```
 
 The two diamonds that matter are the **gates**: your written sign-off on the plan, and a
@@ -169,7 +169,7 @@ From your seat, a clean run asks for your attention three times:
 
 Then it branches, implements, runs your tests out loud, commits on green, writes the docs,
 captures the screenshots, pushes, opens the PR with an explicit base, and hands CI to
-`ci-pipeline`.
+`pipeline-monitor`.
 
 Run Task 1 in **plan mode** (Shift+Tab twice) — the skill reminds you — so nothing gets
 edited while the design is still open.
@@ -210,7 +210,7 @@ and it discovers inline for that run and records nothing.
 - Any ask to build, implement, fix, or patch code — including when coding has already started
 - "set up code-development", "configure code-development" → init
 
-Not for CI failures (that's `ci-pipeline`), releases (`release`), or reviewing someone
+Not for CI failures (that's `pipeline-monitor`), releases (`code-release`), or reviewing someone
 else's PR.
 
 ---
@@ -381,7 +381,7 @@ repo's default branch, which silently flattens a stack into one enormous PR.
 
 Ready for review unless `pr.ready` is false or you said otherwise. The body is fully filled
 from `pr.template` if your repo has one, else the skill's own fixed template — What /
-Changes / Tests / Docs / Risks & follow-up. Then it hands CI off to `ci-pipeline` and says so.
+Changes / Tests / Docs / Risks & follow-up. Then it hands CI off to `pipeline-monitor` and says so.
 
 ---
 
@@ -412,7 +412,7 @@ Changes / Tests / Docs / Risks & follow-up. Then it hands CI off to `ci-pipeline
 - Record a command it didn't run, or call an unvalidated command verified
 - Substitute a different command when a recorded one is missing, instead of stopping
 - Merge the config PR without an explicit yes
-- Watch, re-run, or diagnose CI — that's `ci-pipeline`'s job
+- Watch, re-run, or diagnose CI — that's `pipeline-monitor`'s job
 
 ## Output
 
@@ -423,7 +423,7 @@ there. A fabricated pass is explicitly called out in the skill as the one failur
 would make it worse than developing by hand — and in setup mode the same rule covers
 validation: a command that wasn't run is reported unvalidated, never as working.
 
-The run itself ends with the PR link and the handoff to `ci-pipeline`.
+The run itself ends with the PR link and the handoff to `pipeline-monitor`.
 
 ## Note for editors
 

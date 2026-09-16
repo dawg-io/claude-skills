@@ -1,21 +1,21 @@
 ---
-name: release
+name: code-release
 description: >-
-  Runs a repository's full release process end to end, driven by a `.claude/release.yml`
-  committed to that repo — no hardcoded repo, workflow, or branch names. `/release init`
-  interviews you, writes that config, and opens a PR for it. `/release dry-run` rehearses a
+  Runs a repository's full release process end to end, driven by a `.claude/code-release.yml`
+  committed to that repo — no hardcoded repo, workflow, or branch names. `/code-release init`
+  interviews you, writes that config, and opens a PR for it. `/code-release dry-run` rehearses a
   release read-only, changing nothing. A full run baselines from the last successful release,
   reviews every PR merged since, audits docs and screenshots and stops with an [ON HOLD]
   issue if anything is stale (it reports staleness, never fixes it), opens a labelled review
   issue for explicit human approval, confirms the ref, deploys the docs site first,
   dispatches the release workflow with the approved issue's number, tracks it, locates the
   resulting PR or GitHub Release, announces it, and writes a self-contained HTML record of
-  what shipped. Use on /release, or any ask to cut, ship, publish, or promote a release. Not
-  for feature work (/code-development) or a red pipeline (/ci-pipeline). Needs `gh` or a
+  what shipped. Use on /code-release, or any ask to cut, ship, publish, or promote a release. Not
+  for feature work (/code-development) or a red pipeline (/pipeline-monitor). Needs `gh` or a
   GitHub MCP server — Claude Code only.
 ---
 
-# release
+# code-release
 
 Runs a repository's release process end to end: audit what changed and whether docs and
 screenshots still match it, get human approval on a review issue, make sure the live docs
@@ -23,7 +23,7 @@ site is current, dispatch the release workflow with that issue's number, track i
 the outcome, and leave behind an HTML record of what shipped.
 
 Everything project-specific — which workflow, which branch, which inputs, where the release
-lands, where to announce it — comes from **`.claude/release.yml` in the repo being
+lands, where to announce it — comes from **`.claude/code-release.yml` in the repo being
 released**. This skill hardcodes nothing. `references/config-schema.md` documents every
 field; `references/examples.md` has worked configs to copy.
 
@@ -45,7 +45,7 @@ pressure:
    run.
 6. **Never auto-merge the release outcome, and never announce on the workflow merely
    succeeding.** Confirm the outcome actually exists first.
-7. **The only file this skill ever *commits* is `.claude/release.yml`**, in setup mode, on a
+7. **The only file this skill ever *commits* is `.claude/code-release.yml`**, in setup mode, on a
    branch off the default branch, after you've seen it. It writes exactly one other file —
    the Phase 10 release record — and leaves it untracked. It never pushes to the default
    branch and never merges anything without an explicit yes.
@@ -56,11 +56,11 @@ Pick the mode before doing anything else, and say which one you're in.
 
 | Invocation | Mode | Writes anything? |
 |---|---|---|
-| `/release init`, "set up release", "configure release" | **Setup** — interview, write `.claude/release.yml`, open a PR for it | One file, on a branch, after confirmation |
-| `/release dry-run`, "practice run", "what would a release do" | **Rehearsal** — Phases 0–2 plus a printed dispatch payload, then stop | **Nothing.** No issue, no dispatch, no announcement |
-| `/release`, "cut a release", "ship it" | **Full run** — Phases 0–10 | Issues, a workflow dispatch, an announcement, an HTML record |
+| `/code-release init`, "set up release", "configure release" | **Setup** — interview, write `.claude/code-release.yml`, open a PR for it | One file, on a branch, after confirmation |
+| `/code-release dry-run`, "practice run", "what would a release do" | **Rehearsal** — Phases 0–2 plus a printed dispatch payload, then stop | **Nothing.** No issue, no dispatch, no announcement |
+| `/code-release`, "cut a release", "ship it" | **Full run** — Phases 0–10 | Issues, a workflow dispatch, an announcement, an HTML record |
 
-**Plain `/release` in a repo with no config routes into Setup first**, then continues into
+**Plain `/code-release` in a repo with no config routes into Setup first**, then continues into
 the full run once the config exists. Say that's what you're doing rather than silently
 interviewing.
 
@@ -80,7 +80,7 @@ interviewing.
 `gh` appears throughout as the concrete form. Use the MCP equivalent if that's what's
 connected; the sequence is the same either way.
 
-## Setup mode — `/release init`
+## Setup mode — `/code-release init`
 
 Guides a first-time user from nothing to a committed, validated config. Build it *from what
 the repo actually has* rather than by interrogating the user about things you can read.
@@ -93,7 +93,7 @@ git rev-parse --show-toplevel && git branch --show-current
 gh repo view --json nameWithOwner,defaultBranchRef
 ```
 
-**2. Check for an existing config** at `.claude/release.yml` (or `.yaml`). If one exists,
+**2. Check for an existing config** at `.claude/code-release.yml` (or `.yaml`). If one exists,
 show it and ask whether to update it or keep it — never overwrite a config the user hasn't
 seen.
 
@@ -107,7 +107,7 @@ gh workflow view "<display name>" --repo <owner/repo> --yaml
 ```
 
 **If no workflow declares `workflow_dispatch`, stop here.** Say plainly that the repo has no
-manually-dispatchable release workflow, that `/release` has nothing to trigger until one
+manually-dispatchable release workflow, that `/code-release` has nothing to trigger until one
 exists, and that the workflow needs a `workflow_dispatch:` trigger to be reachable. Show the
 minimal shape:
 
@@ -144,7 +144,7 @@ user is correcting rather than composing:
 - where to announce it, if anywhere
 - where to write the HTML release record, if not the default
 
-**7. Write `.claude/release.yml`**, show it back in full, and ask for confirmation.
+**7. Write `.claude/code-release.yml`**, show it back in full, and ask for confirmation.
 
 **8. Validate it against the live workflow before committing anything** — the same two checks
 as Phase 0 step 4. Never commit a config that would hard-stop on its first real run.
@@ -154,11 +154,11 @@ repo, and it stays narrow:
 
 ```bash
 git fetch origin <default branch>
-git checkout -b chore/release-config origin/<default branch>   # branch off the default, not
+git checkout -b chore/code-release-config origin/<default branch>   # branch off the default, not
                                                                # whatever happens to be checked out
-git add .claude/release.yml          # explicit path, never -A
-git commit -m "Add release config for the /release skill"
-git push -u origin chore/release-config
+git add .claude/code-release.yml          # explicit path, never -A
+git commit -m "Add code-release config for the /code-release skill"
+git push -u origin chore/code-release-config
 gh pr create --fill --base <default branch>   # never omit --base
 ```
 
@@ -168,7 +168,7 @@ commit.
 
 **10. Ask whether to merge it.** Merge only on an explicit yes, and only after the PR's own
 checks are in a state the user accepts. If they'd rather review it themselves, leave the PR
-open and say the next `/release` won't work until it lands on the branch being released.
+open and say the next `/code-release` won't work until it lands on the branch being released.
 
 **11. Say which branch they're on now**, and switch back to where they started unless
 they're continuing straight into a release from this branch.
@@ -176,14 +176,14 @@ they're continuing straight into a release from this branch.
 **12. Offer to continue into a full run.** The approval gate in Phase 4 still stands between
 that point and any dispatch, so continuing is safe — but say so rather than assuming.
 
-## Rehearsal mode — `/release dry-run`
+## Rehearsal mode — `/code-release dry-run`
 
 A complete read-only rehearsal, for a first-time user who doesn't want to find out what this
 skill does by watching it do it.
 
 Run **Phase 0, Phase 1, and Phase 2 exactly as written — with one exception**: an absent
 config does *not* route into Setup here, because Setup writes files. Report that there's no
-config, point at `/release init`, and stop. There is nothing to rehearse without one.
+config, point at `/code-release init`, and stop. There is nothing to rehearse without one.
 
 Otherwise, print what the rest *would* do and stop:
 
@@ -216,7 +216,7 @@ git rev-parse --show-toplevel && git branch --show-current
 gh repo view --json nameWithOwner,defaultBranchRef
 ```
 
-**3. Config.** Read `.claude/release.yml` (accept `.claude/release.yaml` too). Three
+**3. Config.** Read `.claude/code-release.yml` (accept `.claude/code-release.yaml` too). Three
 outcomes — say which one you're in before doing anything else, and never silently degrade:
 
 - **Found** — parse it, then echo the resolved config back in one short block: workflow,
@@ -295,7 +295,7 @@ precisely, not to close it.
    page, what's wrong or missing. Leave it open, tell the user what you found and where, and
    **stop the run completely**. Do not open the normal review issue, do not guess at what
    the docs should say, and do not run screenshot tooling or edit doc files yourself. This
-   phase surfaces the gap; it doesn't close it. Whoever owns docs fixes it, and `/release`
+   phase surfaces the gap; it doesn't close it. Whoever owns docs fixes it, and `/code-release`
    gets re-run from the top when it's ready.
 4. **If everything checks out**, say so briefly and move to Phase 4. If a prior run left an
    `[ON HOLD]` issue open for an overlapping range and it's now resolved, close it and
@@ -512,7 +512,7 @@ credential can escape, and the record and the announcement outlive the run.
 - If a secret appears in a run's output, that is a finding, not an inconvenience. Say so at
   the top of the report, name the workflow and step that leaked it, and recommend rotation.
   Do not quietly redact and move on — and do not dispatch a release on it without saying so.
-- Never write a credential into any file this skill creates, including `.claude/release.yml`
+- Never write a credential into any file this skill creates, including `.claude/code-release.yml`
   and the release record.
 - Never print repository or environment secrets, even when they would explain a failed
   dispatch. Describe the shape instead ("the workflow's `PUBLISH_TOKEN` input is unset").
@@ -525,7 +525,7 @@ credential can escape, and the record and the announcement outlive the run.
 - Creating the approval label if it doesn't exist; opening and closing the review issue and
   the `[ON HOLD]` issue.
 - Dispatching `release.workflow` and `docs.deploy_workflow`, each with its own gate.
-- Writing `.claude/release.yml` in Setup mode, after showing it and getting confirmation —
+- Writing `.claude/code-release.yml` in Setup mode, after showing it and getting confirmation —
   committing it on a branch, pushing, opening a PR, and merging that PR on an explicit yes.
 - Writing the HTML release record after a release has shipped.
 
@@ -540,7 +540,7 @@ credential can escape, and the record and the announcement outlive the run.
 - Sending an input the workflow doesn't declare, or omitting one it marks required.
 - Fabricating or reusing an approval issue number.
 - Announcing before confirming the outcome exists.
-- Writing, committing, or authoring **any file other than `.claude/release.yml` and the
+- Writing, committing, or authoring **any file other than `.claude/code-release.yml` and the
   release record** — no workflow files, no docs, no code. `git add -A` is never correct here;
   stage the one path by name.
 - Pushing to the default branch, force-pushing, or merging the config PR without an explicit
@@ -571,7 +571,7 @@ Every run ends with this block, filled from what actually happened:
     ## release — <repo> @ <ref>
 
     **Mode:** <full run | rehearsal — nothing was created | setup>
-    **Config:** `.claude/release.yml` <loaded | written this run, PR <link> | absent — interviewed>
+    **Config:** `.claude/code-release.yml` <loaded | written this run, PR <link> | absent — interviewed>
     **Workflow:** <release.workflow> — run <link> — <success | failed | not dispatched>
     **Baseline:** <last successful run link> (`<sha>`, <date>) → N merged PRs
 
@@ -600,7 +600,7 @@ The config describes what a project *said* was true when someone wrote it. The r
 is true now. When they disagree — the workflow was renamed, an input was added or removed,
 the docs moved, the outcome repo changed — **trust the repo, say exactly what you found, and
 stop rather than forcing the run to match the config**. Tell the user which key is stale so
-they can fix `.claude/release.yml` in the same breath.
+they can fix `.claude/code-release.yml` in the same breath.
 
 The same applies to anything this file asserts about how a release works. If the actual
 workflow YAML, repo structure, or run output contradicts something here, what's in the repo

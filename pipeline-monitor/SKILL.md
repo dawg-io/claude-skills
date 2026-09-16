@@ -1,9 +1,9 @@
 ---
-name: ci-pipeline
-description: Watches every CI run a gitops action kicks off — push, PR, merge, tag or dispatch — on the checked-out repo/branch. Load it automatically, without being asked, the moment a push, PR or merge happens in this session, including one you just made; finishing a push is not finishing the task. Monitors all active runs; on a failure it reads that job's real logs, prints what broke, then re-runs once for a real infra blip (OOM, timeout, rate limit), or makes the smallest safe fix with a regression test, pushes, and comments on the PR. For a larger problem it stops and lays out options with tradeoffs, recommending a stacked PR. Never guesses. Never skips, disables or loosens a check, or pushes to trunk. `/ci-pipeline init` records which checks gate a merge and how to run each locally. Also use on /ci-pipeline, /devops, /pr-pipeline-watch, "set up ci-pipeline", any question about CI, a build or a red check, or a bare "did that pass?". Not for feature work or releases (/release). Needs `gh` — Claude Code only.
+name: pipeline-monitor
+description: Watches every CI run a gitops action kicks off — push, PR, merge, tag or dispatch — on the checked-out repo/branch. Load it automatically, without being asked, the moment a push, PR or merge happens in this session, including one you just made; finishing a push is not finishing the task. Monitors all active runs; on a failure it reads that job's real logs, prints what broke, then re-runs once for a real infra blip (OOM, timeout, rate limit), or makes the smallest safe fix with a regression test, pushes, and comments on the PR. For a larger problem it stops and lays out options with tradeoffs, recommending a stacked PR. Never guesses. Never skips, disables or loosens a check, or pushes to trunk. `/pipeline-monitor init` records which checks gate a merge and how to run each locally. Also use on /pipeline-monitor, /devops, /pr-pipeline-watch, "set up pipeline-monitor", any question about CI, a build or a red check, or a bare "did that pass?". Not for feature work or releases (/code-release). Needs `gh` — Claude Code only.
 ---
 
-# ci-pipeline
+# pipeline-monitor
 
 Watches the CI pipeline for the repo and commit you're working on — after a push, an opened
 or merged pull request, a tag, or any other gitops action that kicks off a run — figures out
@@ -13,7 +13,7 @@ deliberately in Phase 5, which is where "am I fixing the bug or hiding it" gets 
 
 What this repo's CI actually *is* — which checks exist, which ones block a merge, how to
 reproduce each one locally, which are safe to re-run — comes from
-**`.claude/ci-pipeline.yml` in the repo being watched**, written by `/ci-pipeline init`.
+**`.claude/pipeline-monitor.yml` in the repo being watched**, written by `/pipeline-monitor init`.
 Without it the skill still runs, deriving all of that from the repo on every single wake —
 slower, and worse at exactly the moment a pipeline is red. Either way this skill hardcodes
 nothing.
@@ -32,7 +32,7 @@ green" pressure:
    what a check enforces. If you don't know, go find out with a real command — and if you
    can't, say so and stop. A guess baked into a CI fix gets pushed.
 7. **Setup mode commits exactly one file; a run commits only the fix.**
-   `.claude/ci-pipeline.yml` is written by `/ci-pipeline init` alone, on a branch cut from
+   `.claude/pipeline-monitor.yml` is written by `/pipeline-monitor init` alone, on a branch cut from
    trunk, after the user has seen it — and **never edited during a run to change how that
    run ends**. Downgrading a check in the config is the same cheap fix as downgrading it in
    CI. `git add -A` is never correct in either mode.
@@ -43,8 +43,8 @@ Pick the mode before doing anything else, and say which one you're in.
 
 | Invocation | Mode | Writes anything? |
 |---|---|---|
-| `/ci-pipeline init`, "set up ci-pipeline", "configure CI watching" | **Setup** — inventory the repo's real CI, write `.claude/ci-pipeline.yml`, open a PR for it | One file, on a branch, after confirmation |
-| `/ci-pipeline`, a push/PR/merge in this session, "did that pass?", any red check | **Run** — Phases 0–9 | One job re-run, run cancellations, a fix commit on the topic branch, PR comments |
+| `/pipeline-monitor init`, "set up pipeline-monitor", "configure CI watching" | **Setup** — inventory the repo's real CI, write `.claude/pipeline-monitor.yml`, open a PR for it | One file, on a branch, after confirmation |
+| `/pipeline-monitor`, a push/PR/merge in this session, "did that pass?", any red check | **Run** — Phases 0–9 | One job re-run, run cancellations, a fix commit on the topic branch, PR comments |
 
 **Setup never diagnoses and never fixes. A Run never writes the config.** If a check is red
 while you're in Setup, say so, finish setup, and then offer to watch.
@@ -58,12 +58,12 @@ split on whether anything is actually happening:
 
 - **Checks are queued, running, or already failed** — watching wins. Do the whole run by
   deriving from the repo, exactly as this skill worked before configs existed, and offer
-  `/ci-pipeline init` at the end. An interview started while a pipeline is in flight means
+  `/pipeline-monitor init` at the end. An interview started while a pipeline is in flight means
   nobody is watching the pipeline.
 - **Nothing is running and nothing has failed** — there is nothing to watch, so **offer**
   Setup and stop. Do not start it unasked. This skill loads by itself after every push and
   on a bare "did that pass?", and Setup commits a file and opens a PR — a status question is
-  not consent to either. Say there's nothing running, that `/ci-pipeline init` would record
+  not consent to either. Say there's nothing running, that `/pipeline-monitor init` would record
   which checks gate a merge, and wait to be asked.
 
 ## Environment and tooling
@@ -84,7 +84,7 @@ split on whether anything is actually happening:
 - `gh` commands appear throughout as the concrete form. Use the MCP equivalent if that's
   what's connected; the sequence is the same either way.
 
-## Setup mode — `/ci-pipeline init`
+## Setup mode — `/pipeline-monitor init`
 
 Runs once per repo. It inventories the CI that repo actually has and writes it down, so
 every later run stops re-deriving the same facts from workflow YAML while a pipeline is
@@ -105,7 +105,7 @@ If the tree is dirty, stop and say so. Setup's one commit must not sweep up some
 work, and once the config is written you can no longer tell your change from theirs. Do not
 stash on the user's behalf.
 
-**2. Check for an existing config** at `.claude/ci-pipeline.yml` (accept `.yaml` too). If
+**2. Check for an existing config** at `.claude/pipeline-monitor.yml` (accept `.yaml` too). If
 one exists, show it in full and ask whether to update it or keep it — never overwrite a
 config the user hasn't seen.
 
@@ -119,7 +119,7 @@ gh api repos/{owner}/{repo}/commits/<trunk sha>/check-runs --jq '.check_runs[].n
 ```
 
 **If all three come back empty, stop here.** Say plainly that the repo has no CI — no
-workflows, no external checks — so there is nothing for `/ci-pipeline` to watch and nothing
+workflows, no external checks — so there is nothing for `/pipeline-monitor` to watch and nothing
 to record. Point at **`/code-development`**, which offers to add a basic workflow as part of
 setting a project up. Show the shape so the user knows what's missing:
 
@@ -138,7 +138,7 @@ Two near-misses that are not the same stop, and should be named rather than lump
 - **Workflows exist, but none triggers on `push` or `pull_request`** — everything is
   `schedule` or `workflow_dispatch` only. Say exactly what they do trigger on, and that
   nothing will fire on a push, so a Run will correctly find no checks. Dispatching is out of
-  scope here (`/release` does that). Ask whether to record the scheduled workflows anyway;
+  scope here (`/code-release` does that). Ask whether to record the scheduled workflows anyway;
   usually the answer is no.
 - **No workflow files, but external check-runs exist** on recent commits (SonarQube,
   Codecov, a hosted CI). That is a perfectly good config — record them as `workflow:
@@ -209,7 +209,7 @@ reproduced locally instead of inventing a command.
 - Any check the repo runs that you could not observe on a recent commit — a workflow gated
   behind a path filter or a label, say.
 
-**8. Write `.claude/ci-pipeline.yml`**, show it back in full, and ask for confirmation.
+**8. Write `.claude/pipeline-monitor.yml`**, show it back in full, and ask for confirmation.
 
 **9. Validate what you recorded, before committing anything.** A config that names a check
 which doesn't exist is worse than no config — it makes Phase 1 wait forever for something
@@ -231,14 +231,14 @@ again rather than committing and hoping.
 repo, and it stays narrow:
 
 ```bash
-git status --porcelain                     # expect .claude/ci-pipeline.yml, plus anything a
+git status --porcelain                     # expect .claude/pipeline-monitor.yml, plus anything a
                                            # smoke test in step 9 left behind
 git fetch origin <trunk>
-git checkout -b chore/ci-pipeline-config origin/<trunk>   # branch off trunk, not whatever
+git checkout -b chore/pipeline-monitor-config origin/<trunk>   # branch off trunk, not whatever
                                                           # happens to be checked out
-git add .claude/ci-pipeline.yml            # explicit path, never -A
-git commit -m "Add ci-pipeline config for the /ci-pipeline skill"
-git push -u origin chore/ci-pipeline-config
+git add .claude/pipeline-monitor.yml            # explicit path, never -A
+git commit -m "Add pipeline-monitor config for the /pipeline-monitor skill"
+git push -u origin chore/pipeline-monitor-config
 gh pr create --fill --base <trunk>         # never omit --base
 ```
 
@@ -264,7 +264,7 @@ lands, that run still derives from the repo, because the config only exists on t
 branch. If there aren't, say so: there is nothing to watch, and the skill will fire on its
 own at the next push.
 
-## The config file — `.claude/ci-pipeline.yml`
+## The config file — `.claude/pipeline-monitor.yml`
 
 One file per repo, committed to the repo being watched. It records what this skill would
 otherwise re-derive from workflow YAML on every wake.
@@ -323,7 +323,7 @@ out, and `gh repo view` is finding out.
 renamed, a workflow deleted, branch protection changed — name the stale key, report what the
 repo actually has, and keep working from the repo. A Run does not stop for config drift; a
 red pipeline still needs diagnosing. What it must not do is edit the config to make the
-disagreement disappear. Report the drift and offer `/ci-pipeline init` to re-derive it.
+disagreement disappear. Report the drift and offer `/pipeline-monitor init` to re-derive it.
 
 ## Secrets
 
@@ -333,7 +333,7 @@ pastes its findings into PR comments that may be public.
 - Never quote a value from a log that looks like a credential — token, key, password,
   connection string, signed URL. Redact it as `<redacted>` in every report and comment.
 - Never write a credential into any file this skill creates, including test fixtures,
-  examples, and `.claude/ci-pipeline.yml`.
+  examples, and `.claude/pipeline-monitor.yml`.
 - If a secret appears in log output, that is a finding, not an inconvenience. Say so
   explicitly at the top of the report, name the workflow and step that leaked it, and
   recommend rotation. Do not quietly redact and move on.
@@ -346,9 +346,9 @@ pastes its findings into PR comments that may be public.
 - `git push --force` / `--force-with-lease` to a shared branch, or any push to the trunk
   branch
 - `gh workflow run` / `gh workflow enable` / `gh workflow disable` — dispatching workflows
-  is out of scope for this skill (a release goes through `/release`)
+  is out of scope for this skill (a release goes through `/code-release`)
 - `gh release create`, tag pushes, or anything that promotes a build
-- `gh pr merge` or `gh pr close` on **any PR except the `.claude/ci-pipeline.yml` config
+- `gh pr merge` or `gh pr close` on **any PR except the `.claude/pipeline-monitor.yml` config
   PR** that Setup mode opened, and that one only on an explicit yes. The PR under review is
   never merged or closed by this skill.
 - Any edit to branch protection, a ruleset, or a required-check list
@@ -370,7 +370,7 @@ push was for.
 
 1. **Repo, branch, commit.** `git rev-parse --show-toplevel`, `gh repo view --json
    nameWithOwner,defaultBranchRef`, `git branch --show-current`, `git rev-parse HEAD`.
-2. **Config.** Read `.claude/ci-pipeline.yml` (accept `.claude/ci-pipeline.yaml` too). Three
+2. **Config.** Read `.claude/pipeline-monitor.yml` (accept `.claude/pipeline-monitor.yaml` too). Three
    outcomes — say which one you're in, and never silently degrade:
    - **Found** — parse it and echo the resolved shape back in one short line: how many
      checks, which are `required`, which are `rerun: never`, whether a merge queue is in
@@ -379,13 +379,13 @@ push was for.
    - **Absent** — say so and keep going. Which way it splits depends on whether anything is
      actually running, and you don't know that until step 8, so decide there: checks in
      flight or already failed → derive everything from the repo for this run and offer
-     `/ci-pipeline init` in the report; nothing running and nothing failed → route into
+     `/pipeline-monitor init` in the report; nothing running and nothing failed → route into
      Setup and say so.
    - **Present but unparseable, or missing a required key** — say which key, then **carry on
      without it**, deriving from the repo for the rest of this run. **Never route into Setup
      from here**: a broken config gets replaced deliberately, not in the middle of a
      diagnosis, and a red pipeline is not a reason to stop and interview someone. Put the
-     parse error in the report and point at `/ci-pipeline init`.
+     parse error in the report and point at `/pipeline-monitor init`.
 3. **Is the working tree clean?** `git status --porcelain`. If it isn't, stop and ask before
    going further — this skill commits and pushes, and uncommitted work would get swept into
    a CI-fix commit. Do not stash on the user's behalf.
@@ -423,7 +423,7 @@ push was for.
      true` look for the queue's run after a merge before concluding the checks vanished.
      Only then say so. Never report on a run from an older commit as though it were current.
      This is also where step 2's absent-config split resolves: with no config and nothing to
-     watch, **offer** `/ci-pipeline init` and stop — never start it unasked. With a config,
+     watch, **offer** `/pipeline-monitor init` and stop — never start it unasked. With a config,
      stop here.
 
 If the repo turns out to have no CI at all — no workflows, no external checks on any recent
@@ -623,7 +623,7 @@ rule 7 and in Setup steps 8 and 10.
   instead of fixing what it caught.
 - Lowering a coverage threshold, adding a SonarQube exclusion, or annotating a finding as
   won't-fix to clear a gate.
-- **Editing `.claude/ci-pipeline.yml` to change how this run ends** — flipping a check to
+- **Editing `.claude/pipeline-monitor.yml` to change how this run ends** — flipping a check to
   `advisory`, a job to `rerun: safe`, or `pr_comment` to false. That is the same cheap fix
   in a different file. The config is written in Setup mode and read everywhere else; drift
   gets reported, not edited away.
@@ -721,7 +721,7 @@ content in chat and say which it was. One block per root cause — never one vag
 summary.
 
 Every block from a Run carries the same `**Config:**` footer, so it's always obvious what
-that run was working from — and, when it's absent or broken, `/ci-pipeline init` gets
+that run was working from — and, when it's absent or broken, `/pipeline-monitor init` gets
 mentioned where someone will actually see it. The Setup block reports the config directly
 and doesn't repeat the footer.
 
@@ -735,7 +735,7 @@ any code is written:
 **Failing step:** <the exact step inside the job, not just the job name>
 **Root cause:** <what's actually broken, in plain terms>
 **Plan:** <the small targeted fix you're about to make — or, if escalating, that, and why>
-**Config:** `.claude/ci-pipeline.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
+**Config:** `.claude/pipeline-monitor.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
 ```
 
 **Fix applied:**
@@ -754,7 +754,7 @@ any code is written:
 **Tests:** <exact commands and their real results, or "not run — <reason>">
 
 **Risks / follow-up:** <noticed but not fixed; worth a second look>
-**Config:** `.claude/ci-pipeline.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
+**Config:** `.claude/pipeline-monitor.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
 ```
 
 **Infra flake, no code change** — skipped entirely when `report.comment_on_flake` is false,
@@ -765,7 +765,7 @@ in which case say it in chat instead:
 
 **Failing check:** <check name> — <run link>
 **Cause:** <signal observed, e.g. runner OOM, exit 137> — resolved by re-running the failed job. No code change needed.
-**Config:** `.claude/ci-pipeline.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
+**Config:** `.claude/pipeline-monitor.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
 ```
 
 **Escalation — diagnosed, not fixed:**
@@ -788,14 +788,14 @@ in which case say it in chat instead:
 **Recommended:** <which option, and why>
 **Suggested next step:** stacked PR — branch `<fix-branch>` cut from `<this branch>`, PR targeting `<this branch>`, so this PR stays reviewable on its own.
 **Not attempted:** no code was changed by this run.
-**Config:** `.claude/ci-pipeline.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
+**Config:** `.claude/pipeline-monitor.yml` <loaded, N checks | absent — derived from the repo | unparseable at <key> — derived from the repo>
 ```
 
 **Setup mode — config written.** Setup ends with this instead of any of the above; it
 diagnosed nothing, so it reports nothing about a failure:
 
 ```
-## ci-pipeline setup — <repo> — <date>
+## pipeline-monitor setup — <repo> — <date>
 
 **CI found:** N workflows, M checks observed on <sha short> — or "none, stopped"
 **Recorded:** N checks — <count> required, <count> advisory, <count> marked rerun: never
@@ -836,12 +836,12 @@ diagnosed nothing, so it reports nothing about a failure:
 - Write features, or fixes unrelated to a failing check. That's separate work.
 - Write, generate, or repair CI workflows. A repo with no CI is handed to
   `/code-development`.
-- Cut, promote, or announce a release. That's `/release`.
+- Cut, promote, or announce a release. That's `/code-release`.
 - Dispatch workflows, or edit branch protection.
-- Merge or close any PR except the `.claude/ci-pipeline.yml` config PR that Setup opened,
+- Merge or close any PR except the `.claude/pipeline-monitor.yml` config PR that Setup opened,
   and that one only on an explicit yes. It never merges the PR under review.
 - Commit anything but the fix and its regression test in a Run, or anything but
-  `.claude/ci-pipeline.yml` in Setup.
+  `.claude/pipeline-monitor.yml` in Setup.
 - Fix a failing check by making the check weaker. Ever — in CI or in the config.
 - Edit or delete a workflow step that this skill supersedes — an older auto-fix or
   auto-remediation job, say. Removing one is a one-time edit to `.github/workflows/*.yml`
@@ -857,8 +857,8 @@ it were current — an invented diagnosis is worse than no diagnosis. This is ha
 the end of the line: when the world doesn't match what this skill expected, the answer is to
 say so, never to fill the gap with a plausible guess.
 
-The same goes for `.claude/ci-pipeline.yml`. It describes what someone recorded about this
+The same goes for `.claude/pipeline-monitor.yml`. It describes what someone recorded about this
 repo's CI at some point in the past; the checks that actually ran on this commit are what is
 true now. Where they disagree, the repo wins: report the drift by key, keep working from
-what you observed, and offer `/ci-pipeline init` to re-derive it. Never edit the config
+what you observed, and offer `/pipeline-monitor init` to re-derive it. Never edit the config
 mid-run to make the two agree.

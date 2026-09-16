@@ -1,0 +1,109 @@
+# Orchestrator: push to main.
+#
+# Same validation set as the PR path, run against what actually landed, then a
+# promotion. The promotion is a retag — `edge` ends up pointing at the exact digest
+# that was just scanned, with no second build in between.
+name: main pipeline
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false   # never cancel a run on main: its artifact is the one being promoted
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      packages: write
+
+  test:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  lint:
+    uses: ./.github/workflows/lint.yml
+    permissions:
+      contents: read
+
+  security_scan:
+    needs: [build]
+    uses: ./.github/workflows/security-scan.yml
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    with:
+      image: ${{ needs.build.outputs.image }}
+
+  # Every gate is a `needs:` of this job. Dropping one to get the moving tag out
+  # faster would mean `edge` could point at something a gate never passed.
+  promote:
+    needs: [build, test, lint, security_scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # imagetools create copies the manifest: same digest, no pull, no rebuild.
+      - name: Retag the built image as edge
+        env:
+          SRC: ${{ needs.build.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create --tag "ghcr.io/${GITHUB_REPOSITORY,,}:edge" "$SRC"
+          echo "promoted $SRC -> edge" >> "$GITHUB_STEP_SUMMARY"
+
+  # The same enforcement job as pr-validation.yml, and it matters more here. A skipped
+  # `needs` skips the dependent job rather than failing it, while the run still reports
+  # success — so if test.yml were renamed or its trigger stopped matching, `test` would
+  # skip, `promote` would skip, `:edge` would silently stop advancing, and every run on
+  # main would stay green with nobody notified.
+  summary:
+    needs: [build, test, lint, security_scan, promote]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce pipeline result
+        env:
+          R_BUILD: ${{ needs.build.result }}
+          R_TEST: ${{ needs.test.result }}
+          R_LINT: ${{ needs.lint.result }}
+          R_SCAN: ${{ needs.security_scan.result }}
+          R_PROMOTE: ${{ needs.promote.result }}
+        run: |
+          set -euo pipefail
+          results="build:$R_BUILD test:$R_TEST lint:$R_LINT security-scan:$R_SCAN promote:$R_PROMOTE"
+          failed=0 skipped=0
+          {
+            echo "| job | result |"
+            echo "|---|---|"
+            for pair in $results; do
+              echo "| ${pair%%:*} | ${pair#*:} |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          for pair in $results; do
+            case "${pair#*:}" in
+              success) ;;
+              skipped|cancelled) skipped=1 ;;
+              *) echo "::error::${pair%%:*} reported ${pair#*:}"; failed=1 ;;
+            esac
+          done
+          if [ "$failed" -eq 0 ] && [ "$skipped" -eq 1 ]; then
+            echo "::error::a job was skipped and no failure explains it"
+            exit 1
+          fi
+          exit "$failed"

@@ -1,11 +1,11 @@
-# `.claude/release.yml` — worked examples
+# `.claude/code-release.yml` — worked examples
 
 Three shapes, from most to least machinery. Field reference: `config-schema.md`.
 
-**Every example below goes in *your* repo, at `.claude/release.yml` — the repo you want to
+**Every example below goes in *your* repo, at `.claude/code-release.yml` — the repo you want to
 release, not the repo the skill was copied from.** Names like `your-org/your-app` are
 placeholders: replace every one of them with your own before the config means anything.
-`/release init` fills them in for you from what your repo actually has, which is the less
+`/code-release init` fills them in for you from what your repo actually has, which is the less
 error-prone route.
 
 ---
@@ -19,7 +19,7 @@ and release notes come from the approved review issue's body, fetched verbatim �
 internal bookkeeping (comment).
 
 > **Replace `your-org/your-app-public` with your own public repo**, and put this file in your
-> private repo at `.claude/release.yml`. The workflow name, the input names, and the label
+> private repo at `.claude/code-release.yml`. The workflow name, the input names, and the label
 > below are examples of the *shape* — yours will differ, and Phase 0 hard-stops if they don't
 > match your real workflow.
 

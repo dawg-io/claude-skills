@@ -8,11 +8,11 @@ description: >-
   no commit until local tests actually run and pass; (3) document — update or create
   README/docs with fresh Playwright screenshots from a local run or mocks, sweeping stale
   images even on a bugfix. Ends by pushing and opening a fully filled PR (stacked PRs for
-  larger work), then hands CI to ci-pipeline. `/code-development init` records validated
+  larger work), then hands CI to pipeline-monitor. `/code-development init` records validated
   test, lint and PR conventions in `.claude/code-development.yml`. Use on
   /code-development, "develop a feature", "fix a bug", or any ask to build, implement,
   fix, or patch code — even if coding already started. Not for CI failures
-  (/ci-pipeline), releases (/release), or reviewing others' PRs. Needs git and gh —
+  (/pipeline-monitor), releases (/code-release), or reviewing others' PRs. Needs git and gh —
   Claude Code only.
 ---
 
@@ -102,7 +102,7 @@ config's `ci` block and points at a development run.
 
 SonarQube and CodeQL generally cannot run locally. Handle that honestly: run everything that
 *can* run (linters, the test suite, any local scanner the repo configures), write the code
-to the standards those scanners enforce (Task 2 lists them), and let ci-pipeline catch the
+to the standards those scanners enforce (Task 2 lists them), and let pipeline-monitor catch the
 remainder after the push. Never report a scan as passed locally when it did not run locally.
 
 ## Setup mode — `/code-development init`
@@ -481,7 +481,7 @@ Goal: the docs match the code that was just written, images included.
    <noticed but not handled; screenshot captures still needed; etc.>
    ```
 
-4. Hand off. The push triggers CI, and **ci-pipeline loads automatically from here** —
+4. Hand off. The push triggers CI, and **pipeline-monitor loads automatically from here** —
    watching runs, diagnosing failures, fixing or escalating is its job, not this skill's.
    Say the handoff happened; do not duplicate it.
 
@@ -517,7 +517,7 @@ Goal: the docs match the code that was just written, images included.
   command as verified.
 - Substituting a different command when a recorded one is missing, instead of stopping.
 - Merging the config PR without an explicit yes.
-- Watching, re-running, or diagnosing CI — that's ci-pipeline's job.
+- Watching, re-running, or diagnosing CI — that's pipeline-monitor's job.
 
 ## Stop and ask when
 

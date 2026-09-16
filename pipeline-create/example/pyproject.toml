@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "widgetsvc"
+version = "0.1.0"
+description = "A deliberately small service, used as a practice target for /pipeline-create"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+widgetsvc = "widgetsvc.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/widgetsvc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -1,7 +1,7 @@
-# `.claude/release.yml` — config schema
+# `.claude/code-release.yml` — config schema
 
-The file lives in the **repo being released**, at `.claude/release.yml` (`.yaml` is also
-accepted). It is the only project-specific input the `release` skill takes; everything else
+The file lives in the **repo being released**, at `.claude/code-release.yml` (`.yaml` is also
+accepted). It is the only project-specific input the `code-release` skill takes; everything else
 is discovered from the repo at run time.
 
 Worked configs to copy: `examples.md`.
